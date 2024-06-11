@@ -80,12 +80,12 @@ def get_debounce(fcj_data: FCJData):
 def get_mode():
     # try get arg
     if len(sys.argv) > 1:
-        if sys.argv[1] in ["0", "1"]:
+        if sys.argv[1] in ["0", "1", "2"]:
             return sys.argv[1]
-        print("huh? (arg not 0 or 1)")
+        print("huh? (arg not 0, 1 or 2)")
     while True:
-        mode = input("mouse(0), rbo(1): ")
-        if mode in ["0", "1"]:
+        mode = input("mouse(0), rbo(1), bashing(2): ")
+        if mode in ["0", "1", "2"]:
             return mode
         print("huh?")
 
@@ -192,6 +192,41 @@ def rbo_mover():
             rbo_t("w", False)
 
 
+default_s = 0.3
+top = 0.25
+right = 0.125
+bottom = 0.0625
+left = 0.03125
+
+
+def bashing_mover():
+    global current_fcj_data
+    while not exit_event.is_set():
+        new_data_event.wait()
+        new_data_event.clear()
+        if exit_event.is_set():
+            break
+        with data_lock:
+            fcj_data = current_fcj_data
+
+        wait_time = 0
+        if fcj_data.a == 1:
+            # click
+            mouse_c(True, False)
+            mouse_c(False, False)
+        if fcj_data.left == 1:
+            wait_time = left
+        elif fcj_data.right == 1:
+            wait_time = right
+        elif fcj_data.top == 1:
+            wait_time = top
+        elif fcj_data.bottom == 1:
+            wait_time = bottom
+        else:
+            wait_time = default_s
+        time.sleep(wait_time)
+
+
 if __name__ == "__main__":
     try:
         mode = get_mode()
@@ -201,6 +236,8 @@ if __name__ == "__main__":
             target = mouse_mover
         elif mode == "1":
             target = rbo_mover
+        elif mode == "2":
+            target = bashing_mover
         print("target: ", target)
         js_thread = threading.Thread(target=target, daemon=True)
         read_serial_thread.start()
@@ -208,7 +245,6 @@ if __name__ == "__main__":
 
         while True:
             time.sleep(1)
-            print("alive")
     except KeyboardInterrupt:
         print("bye bye")
         exit_event.set()
